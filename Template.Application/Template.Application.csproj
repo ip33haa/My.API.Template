@@ -11,10 +11,6 @@
     <Folder Include="Features\F-Notifications\Commands\Update\" />
     <Folder Include="Features\F-Notifications\Queries\GetNotificationById\" />
     <Folder Include="Features\F-Notifications\Queries\GetNotifications\" />
-    <Folder Include="Features\F-SIPOCs\Commands\Delete\" />
-    <Folder Include="Features\F-SIPOCs\Commands\Update\" />
-    <Folder Include="Features\F-Suppliers\Commands\Delete\" />
-    <Folder Include="Features\F-Suppliers\Commands\Update\" />
   </ItemGroup>
 
   <ItemGroup>
