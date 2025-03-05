@@ -1,36 +1,36 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Template.Application.DTOs;
 using Template.Application.Interfaces;
 using Template.Domain.Entities;
 
-namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCById
+namespace Template.Application.Features.F_Suppliers.Commands.Delete
 {
-    public class GetSIPOCByIdQueryHandler : IRequestHandler<GetSIPOCByIdQuery, GetSIPOCByIdQueryResponse>
+    public class DeleteSupplierCommandHandler : IRequestHandler<DeleteSupplierCommand, DeleteSupplierCommandResponse>
     {
-        private readonly IRepository<SIPOC> _repository;
+        private readonly IRepository<Supplier> _repository;
         private readonly IMapper _mapper;
-        private readonly ILogger<GetSIPOCByIdQueryHandler> _logger;
+        private readonly ILogger<DeleteSupplierCommandHandler> _logger;
 
-        public GetSIPOCByIdQueryHandler(
-            IRepository<SIPOC> repository,
+        public DeleteSupplierCommandHandler(
+            IRepository<Supplier> repository,
             IMapper mapper,
-            ILogger<GetSIPOCByIdQueryHandler> logger)
+            ILogger<DeleteSupplierCommandHandler> logger)
         {
             _repository = repository;
             _mapper = mapper;
             _logger = logger;
         }
 
-        public async Task<GetSIPOCByIdQueryResponse> Handle(GetSIPOCByIdQuery request, CancellationToken cancellationToken)
+        public async Task<DeleteSupplierCommandResponse> Handle(DeleteSupplierCommand request, CancellationToken cancellationToken)
         {
-            var response = new GetSIPOCByIdQueryResponse();
-            var validator = new GetSIPOCByIdQueryValidator(_repository);
+            var response = new DeleteSupplierCommandResponse();
+            var validator = new DeleteSupplierCommandValidator();
 
             try
             {
                 var validationResult = await validator.ValidateAsync(request, cancellationToken);
+
                 if (validationResult.Errors.Any())
                 {
                     response.Success = false;
@@ -41,26 +41,27 @@ namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCById
                         _logger.LogError("Validation failed: {Error}", error);
                     }
 
-                    return response; // Return early to prevent unnecessary execution
+                    return response; // Return early if validation fails
                 }
 
                 var entity = await _repository.GetByIdAsync(request.Id);
+
                 if (entity == null)
                 {
+                    _logger.LogWarning("Supplier with ID {SupplierId} not found.", request.Id);
                     response.Success = false;
-                    response.Message = "SIPOC not found.";
-                    _logger.LogWarning("SIPOC with Id {Id} not found.", request.Id);
+                    response.Message = "Supplier not found.";
                     return response;
                 }
 
-                response.SIPOC = _mapper.Map<SIPOCDto>(entity);
+                await _repository.DeleteAsync(entity);
                 response.Success = true;
 
-                _logger.LogInformation("SIPOC with Id {Id} retrieved successfully.", request.Id);
+                _logger.LogInformation("Supplier with ID {SupplierId} deleted successfully.", request.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while retrieving SIPOC with Id {Id}.", request.Id);
+                _logger.LogError(ex, "An error occurred while deleting the supplier.");
                 response.Success = false;
                 response.Message = "An unexpected error occurred. Please try again later.";
             }

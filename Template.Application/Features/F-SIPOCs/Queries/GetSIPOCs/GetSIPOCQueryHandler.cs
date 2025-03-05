@@ -22,6 +22,7 @@ namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCs
             _mapper = mapper;
             _logger = logger;
         }
+
         public async Task<GetSIPOCQueryResponse> Handle(GetSIPOCQuery request, CancellationToken cancellationToken)
         {
             var response = new GetSIPOCQueryResponse();
@@ -29,29 +30,40 @@ namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCs
 
             try
             {
-                var validationResult = await validator.ValidateAsync(request, new CancellationToken());
+                var validationResult = await validator.ValidateAsync(request, cancellationToken);
 
-                if (validationResult.Errors.Count > 0)
+                if (validationResult.Errors.Any())
                 {
                     response.Success = false;
-                    response.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.ValidationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        response.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}.");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response; // Return early to prevent unnecessary execution
                 }
-                else if (response.Success)
+
+                var result = await _repository.GetAllAsync();
+                if (result == null || !result.Any())
                 {
-                    var result = await _repository.GetAllAsync();
-                    response.SIPOCs = _mapper.Map<List<SIPOCDto>>(result);
+                    response.Success = false;
+                    response.Message = "No SIPOCs found.";
+                    _logger.LogWarning("No SIPOCs found in the database.");
+                    return response;
                 }
+
+                response.SIPOCs = _mapper.Map<List<SIPOCDto>>(result);
+                response.Success = true;
+
+                _logger.LogInformation("{Count} SIPOCs retrieved successfully.", response.SIPOCs.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"error while due to error- {ex.Message}.");
+                _logger.LogError(ex, "An error occurred while retrieving SIPOCs.");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
             return response;

@@ -10,7 +10,7 @@ namespace Template.Application.Features.F_Notifications.Commands.Create
     {
         private readonly IRepository<Notification> _repository;
         private readonly IMapper _mapper;
-        private readonly ILogger _logger;
+        private readonly ILogger<NotificationHandler> _logger;
 
         public NotificationHandler(IRepository<Notification> repository, IMapper mapper, ILogger<NotificationHandler> logger)
         {
@@ -21,38 +21,43 @@ namespace Template.Application.Features.F_Notifications.Commands.Create
 
         public async Task<NotificationResponse> Handle(NotificationCommand request, CancellationToken cancellationToken)
         {
-            var notificationResponse = new NotificationResponse();
+            var response = new NotificationResponse();
             var validator = new NotificationValidator();
 
             try
             {
                 var validationResult = await validator.ValidateAsync(request, cancellationToken);
-                if (validationResult.Errors.Count > 0)
+                if (validationResult.Errors.Any())
                 {
-                    notificationResponse.Success = true;
-                    notificationResponse.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.Success = false;
+                    response.ValidationErrors = validationResult.Errors.Select(x => x.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        notificationResponse.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}.");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response; // Return early to prevent further execution
                 }
-                else if (notificationResponse.Success)
-                {
-                    var entity = _mapper.Map<Notification>(request.NotificationDTO);
-                    entity.IsSent = true;
-                    entity.DateSent = DateTime.UtcNow.AddHours(8);
-                    var result = await _repository.AddAsync(entity);
-                    notificationResponse.Id = result.Id;
-                }
+
+                var entity = _mapper.Map<Notification>(request.NotificationDTO);
+                entity.IsSent = true;
+                entity.DateSent = DateTime.UtcNow.AddHours(8);
+
+                var result = await _repository.AddAsync(entity);
+                response.Success = true;
+                response.Id = result.Id;
+
+                _logger.LogInformation("Notification {Id} successfully created and sent.", result.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"validation failed due to error- {ex.Message}.");
-                notificationResponse.Success = false;
+                _logger.LogError(ex, "An error occurred while creating the notification.");
+                response.Success = false;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
-            return notificationResponse;
+            return response;
         }
     }
 }

@@ -22,6 +22,7 @@ namespace Template.Application.Features.F_Suppliers.Queries.GetSuppliers
             _mapper = mapper;
             _logger = logger;
         }
+
         public async Task<GetSupplierQueryResponse> Handle(GetSupplierQuery request, CancellationToken cancellationToken)
         {
             var response = new GetSupplierQueryResponse();
@@ -29,29 +30,41 @@ namespace Template.Application.Features.F_Suppliers.Queries.GetSuppliers
 
             try
             {
-                var validationResult = await validator.ValidateAsync(request, new CancellationToken());
+                var validationResult = await validator.ValidateAsync(request, cancellationToken);
 
-                if (validationResult.Errors.Count > 0)
+                if (validationResult.Errors.Any())
                 {
                     response.Success = false;
-                    response.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.ValidationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        response.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}.");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response; // Return early if validation fails
                 }
-                else if (response.Success)
+
+                var result = await _repository.GetAllAsync();
+
+                if (result == null || !result.Any())
                 {
-                    var result = await _repository.GetAllAsync();
-                    response.Suppliers = _mapper.Map<List<SupplierDto>>(result);
+                    _logger.LogWarning("No suppliers found.");
+                    response.Success = false;
+                    response.Message = "No suppliers found.";
+                    return response;
                 }
+
+                response.Suppliers = _mapper.Map<List<SupplierDto>>(result);
+                response.Success = true;
+
+                _logger.LogInformation("Retrieved {Count} suppliers successfully.", result.Count());
             }
             catch (Exception ex)
             {
-                _logger.LogError($"error while due to error- {ex.Message}.");
+                _logger.LogError(ex, "An error occurred while retrieving suppliers.");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
             return response;

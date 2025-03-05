@@ -10,7 +10,7 @@ namespace Template.Application.Features.F_Customers.Commands.Delete
     {
         private readonly IRepository<Customer> _repository;
         private readonly IMapper _mapper;
-        private readonly ILogger _logger;
+        private readonly ILogger<DeleteCustomerCommandHandler> _logger;
 
         public DeleteCustomerCommandHandler(
             IRepository<Customer> repository,
@@ -29,28 +29,39 @@ namespace Template.Application.Features.F_Customers.Commands.Delete
 
             try
             {
-                var validationResult = await validator.ValidateAsync(request, new CancellationToken());
-                if (validationResult.Errors.Count > 0)
+                var validationResult = await validator.ValidateAsync(request, cancellationToken);
+                if (validationResult.Errors.Any())
                 {
                     response.Success = false;
-                    response.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.ValidationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        response.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response;
                 }
-                else if (response.Success)
+
+                var entity = await _repository.GetByIdAsync(request.Id);
+                if (entity == null)
                 {
-                    var entity = await _repository.GetByIdAsync(request.Id);
-                    await _repository.DeleteAsync(entity);
+                    _logger.LogWarning("Customer with ID {Id} not found.", request.Id);
+                    response.Success = false;
+                    response.Message = "Customer not found.";
+                    return response;
                 }
+
+                await _repository.DeleteAsync(entity);
+
+                response.Success = true;
+                _logger.LogInformation("Successfully deleted customer with ID {Id}.", request.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"error while due to error- {ex.Message}");
+                _logger.LogError(ex, "An error occurred while deleting customer with ID {Id}.", request.Id);
                 response.Success = false;
-                response.Message = ex.Message;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
             return response;
