@@ -74,26 +74,62 @@ namespace Template.Infrastructure.Repositories
         /// </summary>
         /// <param name="request">User registration request containing username and password.</param>
         /// <returns>The created <see cref="User"/> object, or null if the username is already taken.</returns>
-        public async Task<User?> RegisterAsync(UserDto request)
+        public async Task<User?> RegisterAsync(RegisterDto request)
         {
-            if (await _context.Users.AnyAsync(u => u.Username == request.Username))
+            try
             {
-                _logger.LogWarning("Registration failed: Username '{Username}' already exists.", request.Username);
+                if (await _context.Users.AnyAsync(u => u.Username == request.Username).ConfigureAwait(false))
+                {
+                    _logger.LogWarning("Registration failed: Username '{Username}' already exists.", request.Username);
+                    return null;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Password))
+                {
+                    _logger.LogWarning("Registration failed: Password cannot be empty.");
+                    return null;
+                }
+
+                var defaultRoleId = await GetDefaultRoleIdAsync();
+
+                var user = new User
+                {
+                    Username = request.Username,
+                    PasswordHash = _passwordHasher.HashPassword(new User(), request.Password), // Hash password correctly
+                    RoleId = defaultRoleId
+                };
+
+                await _context.Users.AddAsync(user).ConfigureAwait(false);
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+
+                _logger.LogInformation("User '{Username}' registered successfully.", request.Username);
+                return user;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while registering user '{Username}'.", request.Username);
                 return null;
             }
-
-            var user = new User
-            {
-                Username = request.Username,
-                PasswordHash = _passwordHasher.HashPassword(null!, request.Password) // Hash password
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("User '{Username}' registered successfully.", request.Username);
-            return user;
         }
+
+        private async Task<Guid> GetDefaultRoleIdAsync()
+        {
+            var adminRole = await _context.Roles
+                .Where(r => r.RoleName == "Admin")
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            if (adminRole == Guid.Empty)
+            {
+                _logger.LogWarning("Admin role not found. Using a new generated RoleId.");
+                return Guid.NewGuid(); // Fallback in case the Admin role is missing
+            }
+
+            return adminRole;
+        }
+
+
 
         /// <summary>
         /// Refreshes a user's access token using a valid refresh token.
