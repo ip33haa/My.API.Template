@@ -30,29 +30,38 @@ namespace Template.Application.Features.F_Customers.Queries.GetCustomers
 
             try
             {
-                var validationResult = await validator.ValidateAsync(request, new CancellationToken());
-
-                if (validationResult.Errors.Count > 0)
+                var validationResult = await validator.ValidateAsync(request, cancellationToken);
+                if (validationResult.Errors.Any())
                 {
                     response.Success = false;
-                    response.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.ValidationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        response.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}.");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response;
                 }
-                else if (response.Success)
+
+                var customers = await _repository.GetAllAsync();
+                if (customers == null || !customers.Any())
                 {
-                    var result = await _repository.GetAllAsync();
-                    response.Customers = _mapper.Map<List<CustomerDto>>(result);
+                    _logger.LogWarning("No customers found.");
+                    response.Success = true;
+                    response.Customers = new List<CustomerDto>();
+                    return response;
                 }
+
+                response.Success = true;
+                response.Customers = _mapper.Map<List<CustomerDto>>(customers);
+                _logger.LogInformation("Successfully retrieved {Count} customers.", customers.Count());
             }
             catch (Exception ex)
             {
-                _logger.LogError($"error while due to error- {ex.Message}.");
+                _logger.LogError(ex, "An error occurred while retrieving customers.");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
             return response;

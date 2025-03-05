@@ -5,6 +5,6 @@ namespace Template.Application.Features.F_Suppliers.Queries.GetSupplierById
 {
     public class GetSupplierByIdQueryResponse : BaseResponse
     {
-        public SupplierDto Suppliers { get; set; }
+        public SupplierDto Supplier { get; set; }
     }
 }

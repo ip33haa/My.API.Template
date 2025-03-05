@@ -1,32 +1,31 @@
 ﻿using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Template.Application.DTOs;
 using Template.Application.Interfaces;
 using Template.Domain.Entities;
 
-namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCById
+namespace Template.Application.Features.F_SIPOCs.Commands.Delete
 {
-    public class GetSIPOCByIdQueryHandler : IRequestHandler<GetSIPOCByIdQuery, GetSIPOCByIdQueryResponse>
+    public class DeleteSIPOCCommandHandler : IRequestHandler<DeleteSIPOCCommand, DeleteSIPOCCommandResponse>
     {
         private readonly IRepository<SIPOC> _repository;
         private readonly IMapper _mapper;
-        private readonly ILogger<GetSIPOCByIdQueryHandler> _logger;
+        private readonly ILogger<DeleteSIPOCCommandHandler> _logger;
 
-        public GetSIPOCByIdQueryHandler(
+        public DeleteSIPOCCommandHandler(
             IRepository<SIPOC> repository,
             IMapper mapper,
-            ILogger<GetSIPOCByIdQueryHandler> logger)
+            ILogger<DeleteSIPOCCommandHandler> logger)
         {
             _repository = repository;
             _mapper = mapper;
             _logger = logger;
         }
 
-        public async Task<GetSIPOCByIdQueryResponse> Handle(GetSIPOCByIdQuery request, CancellationToken cancellationToken)
+        public async Task<DeleteSIPOCCommandResponse> Handle(DeleteSIPOCCommand request, CancellationToken cancellationToken)
         {
-            var response = new GetSIPOCByIdQueryResponse();
-            var validator = new GetSIPOCByIdQueryValidator(_repository);
+            var response = new DeleteSIPOCCommandResponse();
+            var validator = new DeleteSIPOCCommandValidator();
 
             try
             {
@@ -49,18 +48,18 @@ namespace Template.Application.Features.F_SIPOCs.Queries.GetSIPOCById
                 {
                     response.Success = false;
                     response.Message = "SIPOC not found.";
-                    _logger.LogWarning("SIPOC with Id {Id} not found.", request.Id);
+                    _logger.LogWarning("Attempted to delete SIPOC with Id {Id}, but it was not found.", request.Id);
                     return response;
                 }
 
-                response.SIPOC = _mapper.Map<SIPOCDto>(entity);
-                response.Success = true;
+                await _repository.DeleteAsync(entity);
 
-                _logger.LogInformation("SIPOC with Id {Id} retrieved successfully.", request.Id);
+                response.Success = true;
+                _logger.LogInformation("SIPOC with Id {Id} successfully deleted.", request.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while retrieving SIPOC with Id {Id}.", request.Id);
+                _logger.LogError(ex, "An error occurred while deleting SIPOC with Id {Id}.", request.Id);
                 response.Success = false;
                 response.Message = "An unexpected error occurred. Please try again later.";
             }

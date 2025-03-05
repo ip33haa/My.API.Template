@@ -10,7 +10,7 @@ namespace Template.Application.Features.F_SIPOCs.Commands.Create
     {
         private readonly IRepository<SIPOC> _repository;
         private readonly IMapper _mapper;
-        private readonly ILogger _logger;
+        private readonly ILogger<CreateSIPOCCommandHandler> _logger;
 
         public CreateSIPOCCommandHandler(
             IRepository<SIPOC> repository,
@@ -21,6 +21,7 @@ namespace Template.Application.Features.F_SIPOCs.Commands.Create
             _mapper = mapper;
             _logger = logger;
         }
+
         public async Task<CreateSIPOCCommandResponse> Handle(CreateSIPOCCommand request, CancellationToken cancellationToken)
         {
             var response = new CreateSIPOCCommandResponse();
@@ -28,29 +29,33 @@ namespace Template.Application.Features.F_SIPOCs.Commands.Create
 
             try
             {
-                var validationResult = await validator.ValidateAsync(request, new CancellationToken());
-                if (validationResult.Errors.Count > 0)
+                var validationResult = await validator.ValidateAsync(request, cancellationToken);
+                if (validationResult.Errors.Any())
                 {
                     response.Success = false;
-                    response.ValidationErrors = new List<string>();
-                    foreach (var error in validationResult.Errors.Select(x => x.ErrorMessage))
+                    response.ValidationErrors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+
+                    foreach (var error in response.ValidationErrors)
                     {
-                        response.ValidationErrors.Add(error);
-                        _logger.LogError($"validation failed due to error- {error}.");
+                        _logger.LogError("Validation failed: {Error}", error);
                     }
+
+                    return response; // Return early to prevent unnecessary execution
                 }
-                else if (response.Success)
-                {
-                    var entity = _mapper.Map<SIPOC>(request.SIPOC);
-                    var result = await _repository.AddAsync(entity);
-                    response.Id = result.Id;
-                }
+
+                var entity = _mapper.Map<SIPOC>(request.SIPOC);
+                var result = await _repository.AddAsync(entity);
+
+                response.Success = true;
+                response.Id = result.Id;
+
+                _logger.LogInformation("SIPOC {Id} successfully created.", result.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"error while due to error- {ex.Message}");
+                _logger.LogError(ex, "An error occurred while creating SIPOC.");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.Message = "An unexpected error occurred. Please try again later.";
             }
 
             return response;
