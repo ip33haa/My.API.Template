@@ -12,6 +12,7 @@
         <li><strong>JWT Authentication</strong>: Secure user authentication with token-based system.</li>
         <li><strong>Authorization</strong>: Role-based authorization for API access control.</li>
         <li><strong>Refresh Tokens</strong>: Implementation of refresh tokens for continuous authentication without re-login.</li>
+        <li><strong>xUnit Test</strong>: Sample mplementation xUnit test for the Auth Controller.</li>
     </ul>
  <h2>Technologies Used</h2>
     <ul>
@@ -22,6 +23,7 @@
         <li>Entity Framework Core</li>
         <li>JWT Authentication</li>
         <li>Refresh Tokens</li>
+        <li>xUnit</li>
         <li>SQL Server (or any preferred database)</li>
     </ul>
 <h2>Getting Started</h2>
