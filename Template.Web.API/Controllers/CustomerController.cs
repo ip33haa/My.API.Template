@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 using Template.Application.DTOs;
 using Template.Application.Features.F_Customers.Commands.Create;
 using Template.Application.Features.F_Customers.Commands.Delete;
@@ -9,51 +11,46 @@ using Template.Application.Features.F_Customers.Queries.GetCustomers;
 
 namespace Template.Web.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/customers")]
     [ApiController]
     public class CustomerController : ApiControllerBase
     {
-        [HttpGet("get-customers")]
-        public async Task<ActionResult<GetCustomerQueryResponse>> GetCustomers()
+        [HttpGet]
+        public async Task<ActionResult<GetCustomerQueryResponse>> GetCustomersAsync()
         {
             var response = await Mediator.Send(new GetCustomerQuery());
-
-            return response;
+            return Ok(response);
         }
 
-        [HttpGet("get-customer-by-id/{id}")]
-        public async Task<ActionResult<GetCustomerByIdQueryResponse>> GetCustomerById(Guid id)
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<GetCustomerByIdQueryResponse>> GetCustomerByIdAsync(Guid id)
         {
-            var response = await Mediator.Send(new GetCustomerByIdQuery() { Id = id });
-
-            return response;
+            var response = await Mediator.Send(new GetCustomerByIdQuery { Id = id });
+            return Ok(response);
         }
 
-        [HttpPost("create-customer")]
+        [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<CreateCustomerCommandResponse>> CreateCustomer(CustomerDto command)
+        public async Task<ActionResult<CreateCustomerCommandResponse>> CreateCustomerAsync([FromBody] CustomerDto command)
         {
-            var result = await Mediator.Send(new CreateCustomerCommand() { Customer = command });
-
-            return result;
+            var result = await Mediator.Send(new CreateCustomerCommand { Customer = command });
+            return Ok(result);
         }
 
-        [HttpPut("update-customer/{id}")]
+        [HttpPut("{id:guid}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<UpdateCustomerCommandResponse>> UpdateCustomer(Guid id, CustomerDto command)
+        public async Task<ActionResult<UpdateCustomerCommandResponse>> UpdateCustomerAsync(Guid id, [FromBody] CustomerDto command)
         {
-            var result = await Mediator.Send(new UpdateCustomerCommand() { Id = id, Customer = command });
-
-            return result;
+            var result = await Mediator.Send(new UpdateCustomerCommand { Id = id, Customer = command });
+            return Ok(result);
         }
 
-        [HttpDelete("delete-customer/{id}")]
+        [HttpDelete("{id:guid}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<DeleteCustomerCommandResponse>> DeleteCustomer(Guid id)
+        public async Task<ActionResult<DeleteCustomerCommandResponse>> DeleteCustomerAsync(Guid id)
         {
-            var result = await Mediator.Send(new DeleteCustomerCommand() { Id = id });
-
-            return result;
+            var result = await Mediator.Send(new DeleteCustomerCommand { Id = id });
+            return Ok(result);
         }
     }
 }
