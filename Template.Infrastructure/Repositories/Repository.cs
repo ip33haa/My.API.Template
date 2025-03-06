@@ -29,7 +29,7 @@ namespace Template.Infrastructure.Repositories
         /// <param name="httpContextAccessor">Accessor for HTTP context.</param>
         public Repository(IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
         {
-            _dbConnection = new SqlConnection(configuration.GetConnectionString("ISODatabase"));
+            _dbConnection = new SqlConnection(configuration.GetConnectionString("TemplateDatabase"));
             _httpContextAccessor = httpContextAccessor;
         }
 
